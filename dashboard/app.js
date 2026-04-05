@@ -1,474 +1,348 @@
-class Dashboard {
-    constructor() {
-        this.apiBase = '/api';
-        this.refreshInterval = 5000; // 5 seconds
-        this.selectedGovernorates = new Set();
-        this.selectedCategories = new Set();
-        
-        // Data
-        this.governorates = [
-            'Baghdad', 'Basra', 'Nineveh', 'Erbil', 'Najaf', 'Karbala', 
-            'Sulaymaniyah', 'Kirkuk', 'Anbar', 'Diyala', 'Babil', 'Dhi Qar', 
-            'Duhok', 'Maysan', 'Muthanna', 'Qadisiyyah', 'Salah al-Din', 'Wasit'
-        ];
-        
-        this.categories = [
-            'Restaurants', 'Cafes', 'Pharmacies', 'Hospitals', 'Clinics', 
-            'Hotels', 'Supermarkets', 'Bakeries', 'Electronics', 'Clothing', 
-            'Schools', 'Universities', 'Gyms', 'Salons', 'Car Services', 
-            'Construction', 'Hardware', 'Jewelry', 'Mobile Phones', 'Furniture'
-        ];
-        
-        this.init();
-    }
+/**
+ * Iraqi Agent Dashboard - Vanilla JS App
+ */
 
-    init() {
-        this.renderGovernorates();
-        this.renderCategories();
-        this.bindEvents();
-        this.loadDashboard();
-        this.startAutoRefresh();
-    }
+const GOVERNORATES = [
+    "Baghdad", "Basra", "Nineveh", "Erbil", "Najaf", "Karbala", 
+    "Sulaymaniyah", "Kirkuk", "Anbar", "Diyala", "Babil", "Dhi Qar", 
+    "Duhok", "Maysan", "Muthanna", "Qadisiyyah", "Salah al-Din", "Wasit"
+];
 
-    renderGovernorates() {
-        const grid = document.getElementById('governorateGrid');
-        grid.innerHTML = this.governorates.map(gov => `
-            <div class="grid-item" data-governorate="${gov}">
-                <input type="checkbox" id="gov-${gov}" class="checkbox-input">
-                <label for="gov-${gov}" class="grid-label">
-                    ${gov}
-                </label>
-            </div>
-        `).join('');
-    }
+const CATEGORIES = [
+    "Restaurants", "Cafes", "Pharmacies", "Hospitals", "Clinics", 
+    "Hotels", "Supermarkets", "Bakeries", "Electronics", "Clothing", 
+    "Schools", "Universities", "Gyms", "Salons", "Car Services", 
+    "Construction", "Hardware", "Jewelry", "Mobile Phones", "Furniture"
+];
 
-    renderCategories() {
-        const grid = document.getElementById('categoryGrid');
-        grid.innerHTML = this.categories.map(category => `
-            <div class="grid-item" data-category="${category}">
-                <input type="checkbox" id="cat-${category}" class="checkbox-input">
-                <label for="cat-${category}" class="grid-label">
-                    ${category}
-                </label>
-            </div>
-        `).join('');
-    }
+// State
+let state = {
+    selectedGovs: new Set(),
+    selectedCats: new Set(),
+    stats: {},
+    jobs: [],
+    results: [],
+    failures: [],
+    logs: [],
+    isRefreshing: false
+};
 
-    bindEvents() {
-        // Governorate selection
-        document.getElementById('selectAllGovernorates').addEventListener('click', () => {
-            this.selectAllGovernorates();
-        });
-        
-        document.getElementById('deselectAllGovernorates').addEventListener('click', () => {
-            this.deselectAllGovernorates();
-        });
-        
-        // Category selection
-        document.getElementById('selectAllCategories').addEventListener('click', () => {
-            this.selectAllCategories();
-        });
-        
-        document.getElementById('deselectAllCategories').addEventListener('click', () => {
-            this.deselectAllCategories();
-        });
-        
-        // Control actions
-        document.getElementById('startSelected').addEventListener('click', () => {
-            this.startSelected();
-        });
-        
-        document.getElementById('startAll').addEventListener('click', () => {
-            this.startAll();
-        });
-        
-        document.getElementById('refresh').addEventListener('click', () => {
-            this.loadDashboard();
-        });
-        
-        document.getElementById('retryFailed').addEventListener('click', () => {
-            this.retryFailed();
-        });
-        
-        // Checkbox change events
-        document.addEventListener('change', (e) => {
-            if (e.target.classList.contains('checkbox-input')) {
-                const gridItem = e.target.closest('.grid-item');
-                if (gridItem.dataset.governorate) {
-                    this.updateGovernorateSelection();
-                } else if (gridItem.dataset.category) {
-                    this.updateCategorySelection();
-                }
-            }
-        });
-    }
+// UI Elements
+const elements = {
+    govList: document.getElementById('gov-list'),
+    catList: document.getElementById('cat-list'),
+    govCount: document.getElementById('gov-selected-count'),
+    catCount: document.getElementById('cat-selected-count'),
+    jobsBody: document.getElementById('jobs-body'),
+    resultsBody: document.getElementById('results-body'),
+    failuresBody: document.getElementById('failures-body'),
+    logPanel: document.getElementById('activity-log'),
+    alertContainer: document.getElementById('alert-container'),
+    lastSync: document.getElementById('last-sync'),
+    btnStartSelected: document.getElementById('btn-start-selected'),
+    btnStartAll: document.getElementById('btn-start-all'),
+    btnRefresh: document.getElementById('btn-refresh'),
+    btnRetryFailed: document.getElementById('btn-retry-failed')
+};
 
-    selectAllGovernorates() {
-        this.governorates.forEach(gov => {
-            const checkbox = document.getElementById(`gov-${gov}`);
-            if (checkbox) checkbox.checked = true;
-        });
-        this.updateGovernorateSelection();
-    }
+// Initialization
+function init() {
+    renderSelectionGrids();
+    setupEventListeners();
+    refreshData();
+    setInterval(refreshData, 10000); // Auto-refresh every 10s
+    addLog('System initialized. Ready for operations.', 'info');
+}
 
-    deselectAllGovernorates() {
-        this.governorates.forEach(gov => {
-            const checkbox = document.getElementById(`gov-${gov}`);
-            if (checkbox) checkbox.checked = false;
-        });
-        this.updateGovernorateSelection();
-    }
+function renderSelectionGrids() {
+    // Render Governorates
+    elements.govList.innerHTML = GOVERNORATES.map(gov => `
+        <label class="pill" data-gov="${gov}">
+            <input type="checkbox" onchange="toggleGov('${gov}')">
+            <span>${gov}</span>
+        </label>
+    `).join('');
 
-    selectAllCategories() {
-        this.categories.forEach(category => {
-            const checkbox = document.getElementById(`cat-${category}`);
-            if (checkbox) checkbox.checked = true;
-        });
-        this.updateCategorySelection();
-    }
+    // Render Categories
+    elements.catList.innerHTML = CATEGORIES.map(cat => `
+        <label class="pill" data-cat="${cat}">
+            <input type="checkbox" onchange="toggleCat('${cat}')">
+            <span>${cat}</span>
+        </label>
+    `).join('');
+}
 
-    deselectAllCategories() {
-        this.categories.forEach(category => {
-            const checkbox = document.getElementById(`cat-${category}`);
-            if (checkbox) checkbox.checked = false;
-        });
-        this.updateCategorySelection();
-    }
+function setupEventListeners() {
+    document.getElementById('btn-select-all-govs').onclick = () => selectAll('gov');
+    document.getElementById('btn-deselect-all-govs').onclick = () => deselectAll('gov');
+    document.getElementById('btn-select-all-cats').onclick = () => selectAll('cat');
+    document.getElementById('btn-deselect-all-cats').onclick = () => deselectAll('cat');
 
-    updateGovernorateSelection() {
-        this.selectedGovernorates.clear();
-        this.governorates.forEach(gov => {
-            const checkbox = document.getElementById(`gov-${gov}`);
-            if (checkbox && checkbox.checked) {
-                this.selectedGovernorates.add(gov);
-                document.querySelector(`[data-governorate="${gov}"]`).classList.add('selected');
-            } else {
-                document.querySelector(`[data-governorate="${gov}"]`).classList.remove('selected');
-            }
-        });
-        document.getElementById('governorateCount').textContent = `${this.selectedGovernorates.size} selected`;
-    }
+    elements.btnStartSelected.onclick = startSelected;
+    elements.btnStartAll.onclick = startAll;
+    elements.btnRefresh.onclick = refreshData;
+    elements.btnRetryFailed.onclick = retryAllFailed;
+}
 
-    updateCategorySelection() {
-        this.selectedCategories.clear();
-        this.categories.forEach(category => {
-            const checkbox = document.getElementById(`cat-${category}`);
-            if (checkbox && checkbox.checked) {
-                this.selectedCategories.add(category);
-                document.querySelector(`[data-category="${category}"]`).classList.add('selected');
-            } else {
-                document.querySelector(`[data-category="${category}"]`).classList.remove('selected');
-            }
-        });
-        document.getElementById('categoryCount').textContent = `${this.selectedCategories.size} selected`;
-    }
+// Selection Logic
+window.toggleGov = (gov) => {
+    if (state.selectedGovs.has(gov)) state.selectedGovs.delete(gov);
+    else state.selectedGovs.add(gov);
+    updateSelectionUI();
+};
 
-    async startSelected() {
-        if (this.selectedGovernorates.size === 0 || this.selectedCategories.size === 0) {
-            this.showValidation('Please select at least one governorate and one category');
-            return;
-        }
+window.toggleCat = (cat) => {
+    if (state.selectedCats.has(cat)) state.selectedCats.delete(cat);
+    else state.selectedCats.add(cat);
+    updateSelectionUI();
+};
 
-        try {
-            const response = await fetch(this.apiBase + '/start-selected', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    governorates: Array.from(this.selectedGovernorates),
-                    categories: Array.from(this.selectedCategories)
-                })
-            });
+function selectAll(type) {
+    const list = type === 'gov' ? GOVERNORATES : CATEGORIES;
+    const set = type === 'gov' ? state.selectedGovs : state.selectedCats;
+    list.forEach(item => set.add(item));
+    updateSelectionUI();
+}
 
-            const result = await response.json();
+function deselectAll(type) {
+    const set = type === 'gov' ? state.selectedGovs : state.selectedCats;
+    set.clear();
+    updateSelectionUI();
+}
 
-            if (result.success) {
-                this.showSuccess(`Started collection for ${this.selectedGovernorates.size} governorates and ${this.selectedCategories.size} categories`);
-                this.loadDashboard();
-            } else {
-                this.showError(result.error || 'Failed to start selected collection');
-            }
-        } catch (error) {
-            if (error.message.includes('404')) {
-                // Fallback for missing endpoint
-                this.showError('Start Selected endpoint not available yet. Please use Start All or individual governorate selection.');
-            } else {
-                this.showError('Failed to start selected collection');
-            }
-            console.error('Start selected error:', error);
-        }
-    }
+function updateSelectionUI() {
+    // Update Govs
+    document.querySelectorAll('[data-gov]').forEach(el => {
+        const gov = el.dataset.gov;
+        const isSelected = state.selectedGovs.has(gov);
+        el.classList.toggle('selected', isSelected);
+        el.querySelector('input').checked = isSelected;
+    });
+    elements.govCount.textContent = state.selectedGovs.size;
 
-    async startAll() {
-        if (!confirm('This will start collection for all 18 governorates and 20 categories. This will take several hours. Continue?')) {
-            return;
-        }
+    // Update Cats
+    document.querySelectorAll('[data-cat]').forEach(el => {
+        const cat = el.dataset.cat;
+        const isSelected = state.selectedCats.has(cat);
+        el.classList.toggle('selected', isSelected);
+        el.querySelector('input').checked = isSelected;
+    });
+    elements.catCount.textContent = state.selectedCats.size;
+}
 
-        try {
-            const response = await fetch(this.apiBase + '/start-all', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
+// API Calls
+async function refreshData() {
+    if (state.isRefreshing) return;
+    state.isRefreshing = true;
+    elements.btnRefresh.disabled = true;
 
-            const result = await response.json();
+    try {
+        const [stats, jobs, results, failures] = await Promise.all([
+            fetch('/api/dashboard').then(r => r.json()),
+            fetch('/api/jobs').then(r => r.json()),
+            fetch('/api/results').then(r => r.json()),
+            fetch('/api/failures').then(r => r.json())
+        ]);
 
-            if (result.success) {
-                this.showSuccess('Started collection for all governorates');
-                this.loadDashboard();
-            } else {
-                this.showError(result.error || 'Failed to start all governorates');
-            }
-        } catch (error) {
-            this.showError('Failed to start all governorates');
-            console.error('Start all error:', error);
-        }
-    }
+        state.stats = stats;
+        state.jobs = jobs;
+        state.results = results;
+        state.failures = failures;
 
-    async retryFailed() {
-        try {
-            const response = await fetch(this.apiBase + '/retry-failed', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                this.showSuccess(`Retried ${result.retried || 0} failed jobs`);
-                this.loadDashboard();
-            } else {
-                this.showError(result.error || 'Failed to retry jobs');
-            }
-        } catch (error) {
-            if (error.message.includes('404')) {
-                this.showError('Retry endpoint not available yet');
-            } else {
-                this.showError('Failed to retry jobs');
-            }
-            console.error('Retry failed error:', error);
-        }
-    }
-
-    async loadDashboard() {
-        try {
-            const [dashboardData, failuresData, resultsData, activityData] = await Promise.all([
-                this.fetch('/dashboard'),
-                this.fetch('/failures').catch(() => ({ jobs: [] })),
-                this.fetch('/results').catch(() => ({ businesses: [] })),
-                this.fetch('/activity').catch(() => ({ logs: [] }))
-            ]);
-
-            this.updateSummary(dashboardData.stats);
-            this.updateProgressTable(dashboardData.jobs);
-            this.updateBusinessTable(resultsData.businesses);
-            this.updateFailedTable(failuresData.jobs);
-            this.updateActivityLog(activityData.logs);
-        } catch (error) {
-            this.showError('Failed to load dashboard data');
-            console.error('Dashboard load error:', error);
-        }
-    }
-
-    async fetch(endpoint) {
-        const response = await fetch(this.apiBase + endpoint);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        return response.json();
-    }
-
-    updateSummary(stats) {
-        document.getElementById('runningJobs').textContent = stats.runningJobs || 0;
-        document.getElementById('pendingJobs').textContent = stats.pendingJobs || 0;
-        document.getElementById('completedJobs').textContent = stats.completedJobs || 0;
-        document.getElementById('failedJobs').textContent = stats.failedJobs || 0;
-        document.getElementById('totalBusinesses').textContent = stats.totalBusinesses || 0;
-        document.getElementById('activeGovernorates').textContent = stats.activeGovernorates || 0;
-    }
-
-    updateProgressTable(jobs) {
-        const tbody = document.getElementById('progressTableBody');
-        
-        if (!jobs || jobs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" class="no-data">No active jobs</td></tr>';
-            return;
-        }
-
-        tbody.innerHTML = jobs.map(job => `
-            <tr class="job-row status-${job.status}">
-                <td>${job.governorate}</td>
-                <td>${job.city}</td>
-                <td>${job.category}</td>
-                <td><span class="status-badge status-${job.status}">${job.status}</span></td>
-                <td>${job.saved_count || 0}</td>
-                <td>${job.target_count || 10}</td>
-                <td>
-                    <div class="progress-bar-small">
-                        <div class="progress-fill" style="width: ${this.calculateProgress(job)}%"></div>
-                    </div>
-                    <span class="progress-text">${this.calculateProgress(job)}%</span>
-                </td>
-                <td class="step-text">${job.current_step || 'Unknown'}</td>
-                <td class="time-text">${this.formatTime(job.updated_at)}</td>
-            </tr>
-        `).join('');
-    }
-
-    updateBusinessTable(businesses) {
-        const tbody = document.getElementById('businessTableBody');
-        
-        if (!businesses || businesses.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" class="no-data">No businesses found</td></tr>';
-            return;
-        }
-
-        tbody.innerHTML = businesses.slice(0, 20).map(business => `
-            <tr>
-                <td class="business-name">${business.name}</td>
-                <td>${business.governorate}</td>
-                <td>${business.city}</td>
-                <td>${business.category}</td>
-                <td>${business.phone || 'N/A'}</td>
-                <td><span class="source-badge">${business.source}</span></td>
-                <td>${this.formatConfidence(business.confidence)}</td>
-                <td class="time-text">${this.formatTime(business.created_at)}</td>
-            </tr>
-        `).join('');
-    }
-
-    updateFailedTable(jobs) {
-        const tbody = document.getElementById('failedTableBody');
-        
-        if (!jobs || jobs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="no-data">No failed jobs</td></tr>';
-            return;
-        }
-
-        tbody.innerHTML = jobs.map(job => `
-            <tr class="failed-row">
-                <td>${job.governorate}</td>
-                <td>${job.city}</td>
-                <td>${job.category}</td>
-                <td class="error-text">${job.error_message || 'Unknown error'}</td>
-                <td>${job.retry_count || 0}</td>
-                <td class="time-text">${this.formatTime(job.updated_at)}</td>
-                <td>
-                    <button class="btn btn-small btn-outline retry-btn" data-job-id="${job.id}">
-                        🔁 Retry
-                    </button>
-                </td>
-            </tr>
-        `).join('');
-
-        // Bind retry button events
-        tbody.querySelectorAll('.retry-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.retryJob(e.target.dataset.jobId);
-            });
-        });
-    }
-
-    async retryJob(jobId) {
-        try {
-            const response = await fetch(this.apiBase + `/retry-job/${jobId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                this.showSuccess('Job retry initiated');
-                this.loadDashboard();
-            } else {
-                this.showError(result.error || 'Failed to retry job');
-            }
-        } catch (error) {
-            this.showError('Failed to retry job');
-            console.error('Retry job error:', error);
-        }
-    }
-
-    calculateProgress(job) {
-        const saved = job.saved_count || 0;
-        const target = job.target_count || 10;
-        return Math.min(100, Math.round((saved / target) * 100));
-    }
-
-    formatConfidence(confidence) {
-        if (!confidence) return 'N/A';
-        return `${Math.round(confidence * 100)}%`;
-    }
-
-    formatTime(timestamp) {
-        if (!timestamp) return 'N/A';
-        const date = new Date(timestamp);
-        return date.toLocaleString();
-    }
-
-    showValidation(message) {
-        const element = document.getElementById('validationMessage');
-        element.textContent = message;
-        element.className = 'validation-message validation-warning';
-        setTimeout(() => {
-            element.textContent = '';
-            element.className = 'validation-message';
-        }, 5000);
-    }
-
-    showError(message) {
-        const element = document.getElementById('validationMessage');
-        element.textContent = message;
-        element.className = 'validation-message validation-error';
-        setTimeout(() => {
-            element.textContent = '';
-            element.className = 'validation-message';
-        }, 5000);
-    }
-
-    showSuccess(message) {
-        const element = document.getElementById('validationMessage');
-        element.textContent = message;
-        element.className = 'validation-message validation-success';
-        setTimeout(() => {
-            element.textContent = '';
-            element.className = 'validation-message';
-        }, 5000);
-    }
-
-    updateActivityLog(logs) {
-        const logContainer = document.getElementById('activityLog');
-        
-        if (!logs || logs.length === 0) {
-            logContainer.innerHTML = '<div class="log-empty">No recent activity</div>';
-            return;
-        }
-
-        logContainer.innerHTML = logs.slice(0, 50).map(log => `
-            <div class="log-entry log-${log.level || 'info'}">
-                <span class="log-time">${this.formatTime(log.created_at)}</span>
-                <span class="log-type">${log.type || 'system'}</span>
-                <span class="log-message">${log.message}</span>
-                ${log.governorate ? `<span class="log-location">${log.governorate}${log.city ? ' - ' + log.city : ''}${log.category ? ' - ' + log.category : ''}</span>` : ''}
-            </div>
-        `).join('');
-    }
-
-    startAutoRefresh() {
-        setInterval(() => {
-            this.loadDashboard();
-        }, this.refreshInterval);
+        renderDashboard();
+        elements.lastSync.textContent = `Last sync: ${new Date().toLocaleTimeString()}`;
+    } catch (err) {
+        console.error('Refresh failed', err);
+        addLog('Failed to sync with backend.', 'error');
+    } finally {
+        state.isRefreshing = false;
+        elements.btnRefresh.disabled = false;
     }
 }
 
-// Initialize dashboard when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    new Dashboard();
-});
+async function startSelected() {
+    if (state.selectedGovs.size === 0 || state.selectedCats.size === 0) {
+        showAlert('Please select at least one governorate and one category.', 'error');
+        return;
+    }
+
+    setLoading(true);
+    try {
+        const res = await fetch('/api/start-selected', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                governorates: Array.from(state.selectedGovs),
+                categories: Array.from(state.selectedCats)
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showAlert('Agents started for selected configuration.', 'success');
+            addLog(`Started agents for ${state.selectedGovs.size} govs and ${state.selectedCats.size} cats.`, 'success');
+            refreshData();
+        }
+    } catch (err) {
+        showAlert('Failed to start agents.', 'error');
+    } finally {
+        setLoading(false);
+    }
+}
+
+async function startAll() {
+    setLoading(true);
+    try {
+        const res = await fetch('/api/start-all', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            showAlert('All governorate agents have been triggered.', 'success');
+            addLog('Triggered all governorate agents.', 'warning');
+            refreshData();
+        }
+    } catch (err) {
+        showAlert('Failed to start all agents.', 'error');
+    } finally {
+        setLoading(false);
+    }
+}
+
+async function retryAllFailed() {
+    setLoading(true);
+    try {
+        const res = await fetch('/api/retry-job', { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ all: true })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showAlert('Retry command sent for all failed jobs.', 'success');
+            addLog('Retrying all failed jobs.', 'info');
+            refreshData();
+        }
+    } catch (err) {
+        showAlert('Failed to trigger retry.', 'error');
+    } finally {
+        setLoading(false);
+    }
+}
+
+async function retryJob(id) {
+    try {
+        const res = await fetch('/api/retry-job', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            addLog(`Retrying job ${id}...`, 'info');
+            refreshData();
+        }
+    } catch (err) {
+        showAlert('Failed to retry job.', 'error');
+    }
+}
+
+// Rendering
+function renderDashboard() {
+    // Metrics
+    document.getElementById('metric-running').textContent = state.stats.runningJobs || 0;
+    document.getElementById('metric-pending').textContent = state.stats.pendingJobs || 0;
+    document.getElementById('metric-completed').textContent = state.stats.completedJobs || 0;
+    document.getElementById('metric-failed').textContent = state.stats.failedJobs || 0;
+    document.getElementById('metric-saved').textContent = state.stats.totalBusinessesToday || 0;
+    document.getElementById('metric-active-govs').textContent = state.jobs.length;
+
+    // Jobs Table
+    elements.jobsBody.innerHTML = state.jobs.map(job => `
+        <tr>
+            <td><strong>${job.governorate}</strong></td>
+            <td>${job.city}</td>
+            <td>${job.category}</td>
+            <td><span class="status-chip status-${job.status}">${job.status}</span></td>
+            <td>${job.savedCount} / ${job.targetCount}</td>
+            <td>
+                <div class="progress-container">
+                    <div class="progress-bar" style="width: ${job.progress}%"></div>
+                </div>
+                <span style="font-size: 10px">${job.progress}%</span>
+            </td>
+            <td class="text-muted">${job.currentStep}</td>
+            <td class="text-muted">${formatDate(job.updatedAt)}</td>
+        </tr>
+    `).join('');
+    
+    const emptyJobs = document.getElementById('jobs-empty');
+    if (state.jobs.length === 0) emptyJobs.classList.remove('hidden');
+    else emptyJobs.classList.add('hidden');
+    document.getElementById('active-jobs-count').textContent = `${state.jobs.length} Jobs`;
+
+    // Results Table
+    elements.resultsBody.innerHTML = state.results.map(res => `
+        <tr>
+            <td><strong>${res.name}</strong></td>
+            <td>${res.governorate}</td>
+            <td>${res.city}</td>
+            <td>${res.category}</td>
+            <td>${res.phone}</td>
+            <td>${res.source}</td>
+            <td>${(res.confidence * 100).toFixed(0)}%</td>
+            <td class="text-muted">${formatDate(res.savedAt)}</td>
+        </tr>
+    `).join('');
+
+    // Failures Table
+    elements.failuresBody.innerHTML = state.failures.map(fail => `
+        <tr>
+            <td><strong>${fail.governorate}</strong></td>
+            <td>${fail.city}</td>
+            <td>${fail.category}</td>
+            <td class="log-type-error">${fail.errorMessage}</td>
+            <td>${fail.retryCount}</td>
+            <td class="text-muted">${formatDate(fail.updatedAt)}</td>
+            <td>
+                <button class="btn-text" onclick="retryJob('${fail.id}')">Retry</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Helpers
+function formatDate(dateStr) {
+    if (!dateStr) return '--';
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function addLog(msg, type = 'info') {
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.innerHTML = `
+        <span class="log-time">[${new Date().toLocaleTimeString()}]</span>
+        <span class="log-msg log-type-${type}">${msg}</span>
+    `;
+    elements.logPanel.prepend(entry);
+    
+    // Keep only last 100 logs
+    while (elements.logPanel.children.length > 100) {
+        elements.logPanel.removeChild(elements.logPanel.lastChild);
+    }
+}
+
+function showAlert(msg, type = 'success') {
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type}`;
+    alert.textContent = msg;
+    elements.alertContainer.appendChild(alert);
+    setTimeout(() => alert.remove(), 5000);
+}
+
+function setLoading(isLoading) {
+    elements.btnStartSelected.disabled = isLoading;
+    elements.btnStartAll.disabled = isLoading;
+    elements.btnRetryFailed.disabled = isLoading;
+}
+
+// Start
+init();

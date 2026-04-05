@@ -3,165 +3,201 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StartFresh - Iraqi Business Collection Dashboard</title>
+    <title>Iraqi Agent Dashboard - Control Panel</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- Using a simple font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🏛️ StartFresh Iraqi Business Collection</h1>
-            <p>Control and monitor Iraqi business data collection</p>
-        </header>
+    <header class="main-header">
+        <div class="container">
+            <div class="logo">
+                <span class="logo-icon">🇮🇶</span>
+                <h1>Iraqi Agent System <span>Control Panel</span></h1>
+            </div>
+            <div class="header-actions">
+                <span id="system-status" class="status-indicator online">Backend Online</span>
+                <span id="last-sync" class="last-sync">Last sync: --:--:--</span>
+            </div>
+        </div>
+    </header>
 
-        <!-- 1. Top Summary Bar -->
-        <section class="summary-bar">
-            <div class="summary-card">
-                <h3>Running Jobs</h3>
-                <div class="summary-value" id="runningJobs">0</div>
+    <main class="container">
+        <!-- 1. Top Metrics Bar -->
+        <section class="metrics-bar">
+            <div class="metric-card">
+                <span class="metric-label">Running Jobs</span>
+                <span id="metric-running" class="metric-value">0</span>
             </div>
-            <div class="summary-card">
-                <h3>Pending Jobs</h3>
-                <div class="summary-value" id="pendingJobs">0</div>
+            <div class="metric-card">
+                <span class="metric-label">Pending Jobs</span>
+                <span id="metric-pending" class="metric-value">0</span>
             </div>
-            <div class="summary-card">
-                <h3>Completed Jobs</h3>
-                <div class="summary-value" id="completedJobs">0</div>
+            <div class="metric-card">
+                <span class="metric-label">Completed Jobs</span>
+                <span id="metric-completed" class="metric-value">0</span>
             </div>
-            <div class="summary-card">
-                <h3>Failed Jobs</h3>
-                <div class="summary-value" id="failedJobs">0</div>
+            <div class="metric-card">
+                <span class="metric-label">Failed Jobs</span>
+                <span id="metric-failed" class="metric-value">0</span>
             </div>
-            <div class="summary-card">
-                <h3>Total Businesses</h3>
-                <div class="summary-value" id="totalBusinesses">0</div>
+            <div class="metric-card">
+                <span class="metric-label">Businesses Saved</span>
+                <span id="metric-saved" class="metric-value">0</span>
             </div>
-            <div class="summary-card">
-                <h3>Active Governorates</h3>
-                <div class="summary-value" id="activeGovernorates">0</div>
+            <div class="metric-card">
+                <span class="metric-label">Active Govs</span>
+                <span id="metric-active-govs" class="metric-value">0</span>
             </div>
         </section>
 
-        <!-- 2. Governorate Selection Panel -->
-        <section class="selection-panel">
-            <div class="panel-header">
-                <h2>📍 Governorates</h2>
-                <div class="selection-controls">
-                    <span class="selection-count" id="governorateCount">0 selected</span>
-                    <button class="btn btn-small" id="selectAllGovernorates">Select All</button>
-                    <button class="btn btn-small" id="deselectAllGovernorates">Deselect All</button>
+        <div class="selection-grid">
+            <!-- 2. Governorate Selection Panel -->
+            <section class="selection-panel">
+                <div class="panel-header">
+                    <h2>Governorates <span id="gov-selected-count" class="badge">0</span></h2>
+                    <div class="panel-actions">
+                        <button id="btn-select-all-govs" class="btn-text">Select All</button>
+                        <button id="btn-deselect-all-govs" class="btn-text">Deselect All</button>
+                    </div>
                 </div>
-            </div>
-            <div class="grid-container" id="governorateGrid">
-                <!-- Governorates will be populated by JavaScript -->
-            </div>
-        </section>
-
-        <!-- 3. Category Selection Panel -->
-        <section class="selection-panel">
-            <div class="panel-header">
-                <h2>� Categories</h2>
-                <div class="selection-controls">
-                    <span class="selection-count" id="categoryCount">0 selected</span>
-                    <button class="btn btn-small" id="selectAllCategories">Select All</button>
-                    <button class="btn btn-small" id="deselectAllCategories">Deselect All</button>
+                <div id="gov-list" class="pill-grid">
+                    <!-- Governorates will be injected here -->
                 </div>
+            </section>
+
+            <!-- 3. Category Selection Panel -->
+            <section class="selection-panel">
+                <div class="panel-header">
+                    <h2>Categories <span id="cat-selected-count" class="badge">0</span></h2>
+                    <div class="panel-actions">
+                        <button id="btn-select-all-cats" class="btn-text">Select All</button>
+                        <button id="btn-deselect-all-cats" class="btn-text">Deselect All</button>
+                    </div>
+                </div>
+                <div id="cat-list" class="pill-grid">
+                    <!-- Categories will be injected here -->
+                </div>
+            </section>
+        </div>
+
+        <!-- 4. Action Buttons -->
+        <section class="action-bar">
+            <div class="primary-actions">
+                <button id="btn-start-selected" class="btn btn-primary">Start Selected</button>
+                <button id="btn-start-all" class="btn btn-secondary">Start All Governorates</button>
             </div>
-            <div class="grid-container" id="categoryGrid">
-                <!-- Categories will be populated by JavaScript -->
+            <div class="secondary-actions">
+                <button id="btn-refresh" class="btn btn-outline">Refresh</button>
+                <button id="btn-retry-failed" class="btn btn-danger">Retry Failed Jobs</button>
             </div>
         </section>
 
-        <!-- 4. Control Actions -->
-        <section class="control-panel">
-            <div class="control-buttons">
-                <button class="btn btn-primary" id="startSelected">▶️ Start Selected</button>
-                <button class="btn btn-secondary" id="startAll">🇮🇶 Start All Governorates</button>
-                <button class="btn btn-outline" id="refresh">🔄 Refresh</button>
-                <button class="btn btn-warning" id="retryFailed">🔁 Retry Failed Jobs</button>
-            </div>
-            <div class="validation-message" id="validationMessage"></div>
-        </section>
+        <div id="alert-container"></div>
 
         <!-- 5. Active Progress Table -->
-        <section class="data-panel">
-            <h2>📊 Active Progress</h2>
+        <section class="content-section">
+            <div class="section-header">
+                <h2>Active Progress</h2>
+                <span id="active-jobs-count" class="badge">0 Jobs</span>
+            </div>
             <div class="table-container">
-                <table class="progress-table" id="progressTable">
+                <table id="jobs-table">
                     <thead>
                         <tr>
                             <th>Governorate</th>
                             <th>City</th>
                             <th>Category</th>
                             <th>Status</th>
-                            <th>Saved</th>
-                            <th>Target</th>
+                            <th>Saved / Target</th>
                             <th>Progress</th>
-                            <th>Step</th>
-                            <th>Updated</th>
+                            <th>Current Step</th>
+                            <th>Updated At</th>
                         </tr>
                     </thead>
-                    <tbody id="progressTableBody">
-                        <tr><td colspan="9" class="loading">Loading progress data...</td></tr>
+                    <tbody id="jobs-body">
+                        <!-- Jobs will be injected here -->
                     </tbody>
                 </table>
+                <div id="jobs-empty" class="empty-state hidden">No active jobs in the queue.</div>
             </div>
         </section>
 
-        <!-- 6. Recent Businesses Table -->
-        <section class="data-panel">
-            <h2>🏪 Recent Businesses</h2>
-            <div class="table-container">
-                <table class="business-table" id="businessTable">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Governorate</th>
-                            <th>City</th>
-                            <th>Category</th>
-                            <th>Phone</th>
-                            <th>Source</th>
-                            <th>Confidence</th>
-                            <th>Created</th>
-                        </tr>
-                    </thead>
-                    <tbody id="businessTableBody">
-                        <tr><td colspan="8" class="loading">Loading business data...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
+        <div class="bottom-grid">
+            <div class="bottom-left">
+                <!-- 6. Recent Saved Businesses Table -->
+                <section class="content-section">
+                    <div class="section-header">
+                        <h2>Recent Saved Businesses</h2>
+                    </div>
+                    <div class="table-container">
+                        <table id="results-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Governorate</th>
+                                    <th>City</th>
+                                    <th>Category</th>
+                                    <th>Phone</th>
+                                    <th>Source</th>
+                                    <th>Confidence</th>
+                                    <th>Created At</th>
+                                </tr>
+                            </thead>
+                            <tbody id="results-body">
+                                <!-- Results will be injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
 
-        <!-- 7. Failed Jobs Panel -->
-        <section class="data-panel">
-            <h2>❌ Failed Jobs</h2>
-            <div class="table-container">
-                <table class="failed-table" id="failedTable">
-                    <thead>
-                        <tr>
-                            <th>Governorate</th>
-                            <th>City</th>
-                            <th>Category</th>
-                            <th>Error</th>
-                            <th>Retries</th>
-                            <th>Updated</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="failedTableBody">
-                        <tr><td colspan="7" class="loading">Loading failed jobs...</td></tr>
-                    </tbody>
-                </table>
+                <!-- 7. Failed Jobs Panel -->
+                <section class="content-section">
+                    <div class="section-header">
+                        <h2>Failed Jobs</h2>
+                    </div>
+                    <div class="table-container">
+                        <table id="failures-table">
+                            <thead>
+                                <tr>
+                                    <th>Governorate</th>
+                                    <th>City</th>
+                                    <th>Category</th>
+                                    <th>Error</th>
+                                    <th>Retry Count</th>
+                                    <th>Updated At</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="failures-body">
+                                <!-- Failures will be injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
             </div>
-        </section>
 
-        <!-- 8. Activity Log Panel -->
-        <section class="data-panel">
-            <h2>📋 Activity Log</h2>
-            <div class="log-container" id="activityLog">
-                <div class="log-loading">Loading activity log...</div>
+            <div class="bottom-right">
+                <!-- 8. Activity Log Panel -->
+                <section class="content-section log-section">
+                    <div class="section-header">
+                        <h2>Activity Log</h2>
+                    </div>
+                    <div id="activity-log" class="log-panel">
+                        <!-- Logs will be injected here -->
+                    </div>
+                </section>
             </div>
-        </section>
-    </div>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <div class="container">
+            <p>© 2026 Iraqi Agent System • Operator Dashboard</p>
+        </div>
+    </footer>
 
     <script src="app.js"></script>
 </body>
