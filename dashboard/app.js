@@ -130,7 +130,33 @@ function updateSelectionUI() {
     elements.catCount.textContent = state.selectedCats.size;
 }
 
-// API Calls
+// API Configuration
+const API_BASE_URL = window.API_BASE_URL || 
+                    (window.location.hostname === 'localhost' ? '' : 
+                     '');
+
+// API Calls with error handling
+async function apiCall(endpoint, options = {}) {
+    const url = `${API_BASE_URL}${endpoint}`;
+    console.log(`API Call: ${url}`);
+    
+    try {
+        const response = await fetch(url, {
+            headers: { 'Content-Type': 'application/json', ...options.headers },
+            ...options
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error(`API Error for ${endpoint}:`, error);
+        throw error;
+    }
+}
+
 async function refreshData() {
     if (state.isRefreshing) return;
     state.isRefreshing = true;
@@ -138,10 +164,10 @@ async function refreshData() {
 
     try {
         const [stats, jobs, results, failures] = await Promise.all([
-            fetch('/api/dashboard').then(r => r.json()),
-            fetch('/api/jobs').then(r => r.json()),
-            fetch('/api/results').then(r => r.json()),
-            fetch('/api/failures').then(r => r.json())
+            apiCall('/api/dashboard'),
+            apiCall('/api/jobs'),
+            apiCall('/api/results'),
+            apiCall('/api/failures')
         ]);
 
         state.stats = stats;
@@ -151,9 +177,20 @@ async function refreshData() {
 
         renderDashboard();
         elements.lastSync.textContent = `Last sync: ${new Date().toLocaleTimeString()}`;
+        addLog('Successfully synced with backend.', 'success');
+        
+        // Show connection status in UI
+        document.getElementById('connection-status').textContent = 'Connected';
+        document.getElementById('connection-status').className = 'status-chip status-running';
     } catch (err) {
         console.error('Refresh failed', err);
-        addLog('Failed to sync with backend.', 'error');
+        const errorMsg = `Backend connection failed: ${err.message}`;
+        addLog(errorMsg, 'error');
+        showAlert(errorMsg, 'error');
+        
+        // Show connection status in UI
+        document.getElementById('connection-status').textContent = 'Disconnected';
+        document.getElementById('connection-status').className = 'status-chip status-failed';
     } finally {
         state.isRefreshing = false;
         elements.btnRefresh.disabled = false;
@@ -168,22 +205,23 @@ async function startSelected() {
 
     setLoading(true);
     try {
-        const res = await fetch('/api/start-selected', {
+        const data = await apiCall('/api/start-selected', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 governorates: Array.from(state.selectedGovs),
                 categories: Array.from(state.selectedCats)
             })
         });
-        const data = await res.json();
+        
         if (data.success) {
             showAlert('Agents started for selected configuration.', 'success');
             addLog(`Started agents for ${state.selectedGovs.size} govs and ${state.selectedCats.size} cats.`, 'success');
             refreshData();
         }
     } catch (err) {
-        showAlert('Failed to start agents.', 'error');
+        const errorMsg = `Failed to start agents: ${err.message}`;
+        showAlert(errorMsg, 'error');
+        addLog(errorMsg, 'error');
     } finally {
         setLoading(false);
     }
@@ -192,15 +230,16 @@ async function startSelected() {
 async function startAll() {
     setLoading(true);
     try {
-        const res = await fetch('/api/start-all', { method: 'POST' });
-        const data = await res.json();
+        const data = await apiCall('/api/start-all', { method: 'POST' });
         if (data.success) {
             showAlert('All governorate agents have been triggered.', 'success');
             addLog('Triggered all governorate agents.', 'warning');
             refreshData();
         }
     } catch (err) {
-        showAlert('Failed to start all agents.', 'error');
+        const errorMsg = `Failed to start all agents: ${err.message}`;
+        showAlert(errorMsg, 'error');
+        addLog(errorMsg, 'error');
     } finally {
         setLoading(false);
     }
@@ -209,19 +248,19 @@ async function startAll() {
 async function retryAllFailed() {
     setLoading(true);
     try {
-        const res = await fetch('/api/retry-job', { 
+        const data = await apiCall('/api/retry-job', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ all: true })
         });
-        const data = await res.json();
         if (data.success) {
             showAlert('Retry command sent for all failed jobs.', 'success');
             addLog('Retrying all failed jobs.', 'info');
             refreshData();
         }
     } catch (err) {
-        showAlert('Failed to trigger retry.', 'error');
+        const errorMsg = `Failed to trigger retry: ${err.message}`;
+        showAlert(errorMsg, 'error');
+        addLog(errorMsg, 'error');
     } finally {
         setLoading(false);
     }
@@ -229,18 +268,18 @@ async function retryAllFailed() {
 
 async function retryJob(id) {
     try {
-        const res = await fetch('/api/retry-job', {
+        const data = await apiCall('/api/retry-job', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id })
         });
-        const data = await res.json();
         if (data.success) {
             addLog(`Retrying job ${id}...`, 'info');
             refreshData();
         }
     } catch (err) {
-        showAlert('Failed to retry job.', 'error');
+        const errorMsg = `Failed to retry job ${id}: ${err.message}`;
+        showAlert(errorMsg, 'error');
+        addLog(errorMsg, 'error');
     }
 }
 
