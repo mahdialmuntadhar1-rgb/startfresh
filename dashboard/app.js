@@ -256,16 +256,18 @@ class Dashboard {
 
     async loadDashboard() {
         try {
-            const [dashboardData, failuresData, resultsData] = await Promise.all([
+            const [dashboardData, failuresData, resultsData, activityData] = await Promise.all([
                 this.fetch('/dashboard'),
                 this.fetch('/failures').catch(() => ({ jobs: [] })),
-                this.fetch('/results').catch(() => ({ businesses: [] }))
+                this.fetch('/results').catch(() => ({ businesses: [] })),
+                this.fetch('/activity').catch(() => ({ logs: [] }))
             ]);
 
             this.updateSummary(dashboardData.stats);
             this.updateProgressTable(dashboardData.jobs);
             this.updateBusinessTable(resultsData.businesses);
             this.updateFailedTable(failuresData.jobs);
+            this.updateActivityLog(activityData.logs);
         } catch (error) {
             this.showError('Failed to load dashboard data');
             console.error('Dashboard load error:', error);
@@ -439,6 +441,24 @@ class Dashboard {
             element.textContent = '';
             element.className = 'validation-message';
         }, 5000);
+    }
+
+    updateActivityLog(logs) {
+        const logContainer = document.getElementById('activityLog');
+        
+        if (!logs || logs.length === 0) {
+            logContainer.innerHTML = '<div class="log-empty">No recent activity</div>';
+            return;
+        }
+
+        logContainer.innerHTML = logs.slice(0, 50).map(log => `
+            <div class="log-entry log-${log.level || 'info'}">
+                <span class="log-time">${this.formatTime(log.created_at)}</span>
+                <span class="log-type">${log.type || 'system'}</span>
+                <span class="log-message">${log.message}</span>
+                ${log.governorate ? `<span class="log-location">${log.governorate}${log.city ? ' - ' + log.city : ''}${log.category ? ' - ' + log.category : ''}</span>` : ''}
+            </div>
+        `).join('');
     }
 
     startAutoRefresh() {

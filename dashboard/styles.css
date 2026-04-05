@@ -372,6 +372,93 @@ header p {
     font-style: italic;
 }
 
+/* Activity Log */
+.log-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #fafafa;
+}
+
+.log-entry {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 0.85em;
+    line-height: 1.4;
+}
+
+.log-entry:last-child {
+    border-bottom: none;
+}
+
+.log-entry:hover {
+    background: #f3f4f6;
+}
+
+.log-time {
+    color: #666;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+    min-width: 80px;
+    margin-right: 12px;
+}
+
+.log-type {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.8em;
+    font-weight: 500;
+    min-width: 60px;
+    text-align: center;
+    margin-right: 12px;
+    text-transform: uppercase;
+}
+
+.log-message {
+    flex: 1;
+    color: #333;
+}
+
+.log-location {
+    color: #666;
+    font-size: 0.8em;
+    margin-left: 8px;
+    padding: 2px 6px;
+    background: #f3f4f6;
+    border-radius: 3px;
+}
+
+/* Log Levels */
+.log-info .log-type {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.log-success .log-type {
+    background: #d1fae5;
+    color: #059669;
+}
+
+.log-warning .log-type {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.log-error .log-type {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.log-loading, .log-empty {
+    text-align: center;
+    color: #666;
+    padding: 40px;
+    font-style: italic;
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
     .container {
@@ -405,6 +492,26 @@ header p {
     
     .step-text, .error-text {
         max-width: 100px;
+    }
+    
+    .log-entry {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 6px 8px;
+    }
+    
+    .log-time, .log-type {
+        margin-right: 0;
+        margin-bottom: 4px;
+    }
+    
+    .log-message {
+        width: 100%;
+    }
+    
+    .log-location {
+        margin-left: 0;
+        margin-top: 4px;
     }
 }
 
