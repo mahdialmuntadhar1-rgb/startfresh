@@ -1,0 +1,179 @@
+const { supabase } = require('./supabase');
+const CONFIG = require('../config/constants');
+
+async function createJob(governorate, category) {
+  try {
+    const { data, error } = await supabase
+      .from('jobs')
+      .insert({
+        governorate,
+        category,
+        status: CONFIG.JOB_STATUS.PENDING,
+        current_step: 'Created'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Create job error:', error);
+    throw error;
+  }
+}
+
+async function updateJobStatus(jobId, status, progress = null, currentStep = null, errorMessage = null) {
+  try {
+    const updateData = { status };
+    
+    if (progress !== null) updateData.progress = progress;
+    if (currentStep !== null) updateData.current_step = currentStep;
+    if (errorMessage !== null) updateData.error_message = errorMessage;
+    
+    if (status === CONFIG.JOB_STATUS.DONE || status === CONFIG.JOB_STATUS.FAILED) {
+      updateData.completed_at = new Date().toISOString();
+    }
+    
+    updateData.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('jobs')
+      .update(updateData)
+      .eq('id', jobId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Update job status error:', error);
+    throw error;
+  }
+}
+
+async function getJobById(jobId) {
+  try {
+    const { data, error } = await supabase
+      .from('jobs')
+      .select('*')
+      .eq('id', jobId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Get job by ID error:', error);
+    throw error;
+  }
+}
+
+async function getRunningJobs() {
+  try {
+    const { data, error } = await supabase
+      .from('jobs')
+      .select('*')
+      .in('status', [CONFIG.JOB_STATUS.PENDING, CONFIG.JOB_STATUS.RUNNING])
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Get running jobs error:', error);
+    return [];
+  }
+}
+
+async function getPendingJobs() {
+  try {
+    const { data, error } = await supabase
+      .from('jobs')
+      .select('*')
+      .eq('status', CONFIG.JOB_STATUS.PENDING)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Get pending jobs error:', error);
+    return [];
+  }
+}
+
+async function incrementRetryCount(jobId) {
+  try {
+    const { data, error } = await supabase
+      .from('jobs')
+      .update({ 
+        retry_count: supabase.rpc('increment', { x: 'retry_count' }),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', jobId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Increment retry count error:', error);
+    throw error;
+  }
+}
+
+async function completeJob(jobId, businessesFound = 0, businessesSaved = 0) {
+  try {
+    const { data, error } = await supabase
+      .from('jobs')
+      .update({
+        status: CONFIG.JOB_STATUS.DONE,
+        progress: 100,
+        current_step: 'Completed',
+        businesses_found: businessesFound,
+        businesses_saved: businessesSaved,
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', jobId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Complete job error:', error);
+    throw error;
+  }
+}
+
+async function failJob(jobId, errorMessage) {
+  try {
+    const { data, error } = await supabase
+      .from('jobs')
+      .update({
+        status: CONFIG.JOB_STATUS.FAILED,
+        current_step: 'Failed',
+        error_message: errorMessage,
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', jobId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Fail job error:', error);
+    throw error;
+  }
+}
+
+module.exports = {
+  createJob,
+  updateJobStatus,
+  getJobById,
+  getRunningJobs,
+  getPendingJobs,
+  incrementRetryCount,
+  completeJob,
+  failJob
+};
